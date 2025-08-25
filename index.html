@@ -1,0 +1,835 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Theme Color -->
+<meta name="theme-color" content="#00ffcc">
+
+<!-- iOS PWA Settings -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My GitHub PWA">
+
+<!-- Icons -->
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
+
+<!-- Splash Screens for iPad -->
+<link rel="apple-touch-startup-image" href="icons/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
+<link rel="apple-touch-startup-image" href="icons/splash-1668x2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)">
+<link rel="apple-touch-startup-image" href="icons/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NeonNotes — Rich Text + Drawing</title>
+
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Font Awesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0f1724;
+    --panel:#0b1220;
+    --muted:#9aa7bd;
+    --accent:#6ee7b7;
+    --accent-2:#7dd3fc;
+    --card:#0e1a2b;
+    --glass: rgba(255,255,255,0.03);
+    --danger:#ff6b6b;
+    --radius:14px;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#061025 0%, #081428 60%);color:#e6eef8}
+  .app {
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    gap:18px;
+    height:100vh;
+    padding:18px;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));
+    border-radius:var(--radius);
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    min-width:250px;
+    box-shadow: 0 6px 30px rgba(2,6,23,0.6);
+  }
+  .brand {
+    display:flex;align-items:center;gap:12px;
+  }
+  .brand .logo {
+    width:48px;height:48px;border-radius:10px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:#04101a;font-size:20px;
+    box-shadow: 0 6px 18px rgba(109,244,200,0.06), inset 0 -6px 18px rgba(255,255,255,0.03);
+  }
+  .brand h1{font-size:18px;margin:0}
+  .brand p{margin:0;color:var(--muted);font-size:12px}
+
+  .controls {display:flex;gap:8px;flex-wrap:wrap}
+  .btn {
+    background:var(--glass);
+    border:1px solid rgba(255,255,255,0.03);
+    padding:8px 12px;border-radius:10px;color:var(--accent-2);cursor:pointer;font-weight:600;
+    display:inline-flex;gap:8px;align-items:center;font-size:13px;
+  }
+  .btn.secondary {color:var(--muted);background:transparent;border:1px dashed rgba(255,255,255,0.03)}
+  .btn.danger {color:var(--danger)}
+  .search {
+    display:flex;align-items:center;background:rgba(255,255,255,0.02);padding:8px;border-radius:10px;gap:8px;
+  }
+  .search input{background:transparent;border:0;outline:0;color:inherit;width:100%}
+
+  .notes-list{overflow:auto;padding-right:6px}
+  .note-item {
+    display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px;border-radius:10px;cursor:pointer;
+    transition:background .12s,transform .08s;
+  }
+  .note-item:hover{background:rgba(255,255,255,0.015);transform:translateY(-2px)}
+  .note-item.active{background:linear-gradient(90deg, rgba(125,211,252,0.06), rgba(110,231,183,0.03));border:1px solid rgba(125,211,252,0.06)}
+  .note-meta{display:flex;gap:8px;flex-direction:column}
+  .note-title{font-weight:700}
+  .note-snippet{font-size:12px;color:var(--muted);max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .sidebar-bottom{margin-top:auto;display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .small{font-size:12px;color:var(--muted)}
+
+  /* Editor panel */
+  .editor-wrap {
+    display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:var(--radius);background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
+    box-shadow: 0 18px 50px rgba(2,6,23,0.55);
+  }
+
+  .topbar {
+    display:flex;align-items:center;gap:12px;
+  }
+  .title-input{
+    flex:1;background:transparent;border:0;outline:0;font-size:18px;font-weight:700;color:inherit;padding:6px 8px;border-radius:8px;
+  }
+  .toolbar {
+    display:flex;gap:8px;flex-wrap:wrap;
+    background:rgba(255,255,255,0.01);padding:8px;border-radius:12px;
+  }
+  .tool {
+    display:inline-flex;gap:8px;align-items:center;padding:8px;border-radius:9px;background:transparent;border:0;color:var(--muted);cursor:pointer;
+  }
+  .tool:hover{background:rgba(255,255,255,0.02)}
+  .sep{width:1px;background:rgba(255,255,255,0.03);height:30px;margin:0 6px;border-radius:1px}
+
+  .editor {
+    display:flex;gap:14px;
+  }
+  .content {
+    background:rgba(255,255,255,0.01);border-radius:12px;padding:16px;flex:1;min-height:60vh;max-height:75vh;overflow:auto;
+  }
+  .content[contenteditable="true"]{outline:0;cursor:text}
+  .placeholder {color:var(--muted);font-style:italic}
+  .status {font-size:12px;color:var(--muted);margin-top:6px}
+
+  /* Drawing modal */
+  .modal {
+    position:fixed;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(3,7,16,0.6), rgba(1,3,7,0.85));
+    z-index:90;padding:18px;
+  }
+  .modal.show{display:flex}
+  .draw-card {
+    width:100%;max-width:1000px;background:linear-gradient(180deg,#071226,#04101a);border-radius:12px;padding:12px;
+    box-shadow:0 30px 80px rgba(2,6,23,0.7);
+  }
+  .canvas-wrap{background:#061423;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .draw-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .color-swatch{width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .range {width:120px}
+  canvas{background:#f8fafcff;border-radius:8px;touch-action: none}
+
+  /* responsive */
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr;grid-auto-rows:auto;padding:12px}
+    .sidebar{order:2}
+    .editor-wrap{order:1}
+  }
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="NeonNotes app">
+  <aside class="sidebar" aria-label="Notes sidebar">
+    <div class="brand">
+      <div class="logo">NN</div>
+      <div>
+        <h1>NeonNotes</h1>
+        <p>rich text + drawing • autosave</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="newNote" class="btn"><i class="fa-solid fa-plus"></i> New</button>
+      <button id="duplicateNote" class="btn secondary" title="Duplicate current note"><i class="fa-regular fa-clone"></i></button>
+      <button id="exportNote" class="btn secondary" title="Export current note to HTML"><i class="fa-solid fa-file-export"></i></button>
+      <button id="importNoteBtn" class="btn secondary" title="Import HTML note"><i class="fa-solid fa-file-import"></i></button>
+      <input id="importNote" type="file" accept=".html" style="display:none">
+    </div>
+
+    <div class="search" title="Search notes">
+      <i class="fa-solid fa-magnifying-glass" style="color:var(--muted)"></i>
+      <input id="search" placeholder="Search notes..." />
+    </div>
+
+    <div class="notes-list" id="notesList" aria-live="polite"></div>
+
+    <div class="sidebar-bottom">
+      <div class="small">Autosave: <span id="autosaveStatus">—</span></div>
+      <div style="display:flex;gap:8px">
+        <button id="settingsBtn" class="btn secondary" title="Settings"><i class="fa-solid fa-gear"></i></button>
+        <button id="deleteNote" class="btn danger" title="Delete current note"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="editor-wrap" aria-label="Editor">
+    <div class="topbar">
+      <input id="noteTitle" class="title-input" placeholder="Untitled note — tap to name" />
+      <div class="toolbar" role="toolbar" aria-label="Text formatting toolbar">
+        <button class="tool" data-cmd="bold" title="Bold"><i class="fa-solid fa-bold"></i></button>
+        <button class="tool" data-cmd="italic" title="Italic"><i class="fa-solid fa-italic"></i></button>
+        <button class="tool" data-cmd="underline" title="Underline"><i class="fa-solid fa-underline"></i></button>
+        <button class="tool" data-cmd="strikeThrough" title="Strike"><i class="fa-solid fa-strikethrough"></i></button>
+        <div class="sep"></div>
+        <button class="tool" data-cmd="insertUnorderedList" title="Bulleted list"><i class="fa-solid fa-list-ul"></i></button>
+        <button class="tool" data-cmd="insertOrderedList" title="Numbered list"><i class="fa-solid fa-list-ol"></i></button>
+        <div class="sep"></div>
+        <button class="tool" id="linkBtn" title="Insert/Edit Link"><i class="fa-solid fa-link"></i></button>
+        <button class="tool" id="imageBtn" title="Insert Image (URL)"><i class="fa-solid fa-image"></i></button>
+        <button class="tool" id="drawBtn" title="Open drawing tool"><i class="fa-solid fa-pen-fancy"></i></button>
+        <div class="sep"></div>
+        <select id="fontSize" class="tool" title="Font size">
+          <option value="3">Normal</option>
+          <option value="4">Large</option>
+          <option value="5">XL</option>
+        </select>
+        <input type="color" id="textColor" title="Text color" style="height:36px;width:42px;border-radius:8px;border:0;padding:0"/>
+        <button id="clearFormatting" class="tool" title="Clear formatting"><i class="fa-solid fa-eraser"></i></button>
+      </div>
+    </div>
+
+    <div class="editor">
+      <div class="content" id="content" contenteditable="true" spellcheck="true" aria-label="Note editor">
+        <div class="placeholder">Start typing here. Use the toolbar to format text. Use the <i class="fa-solid fa-pen-fancy"></i> drawing tool to add sketches.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="status"><span id="lastSaved">Saved: never</span></div>
+      <div style="display:flex;gap:8px">
+        <button id="downloadAll" class="btn secondary"><i class="fa-solid fa-file-zipper"></i> Export All</button>
+        <button id="clearAll" class="btn danger"><i class="fa-solid fa-trash-can"></i> Clear All</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Drawing modal -->
+<div class="modal" id="drawModal" role="dialog" aria-modal="true" aria-label="Drawing tool">
+  <div class="draw-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <h3 style="margin:0">Sketch Pad</h3>
+        <div class="small" style="color:var(--muted)">Draw, undo, change brush size, then insert into note.</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button id="drawClose" class="btn secondary"><i class="fa-solid fa-xmark"></i> Close</button>
+        <button id="drawInsert" class="btn"><i class="fa-solid fa-image"></i> Insert</button>
+      </div>
+    </div>
+
+    <div class="canvas-wrap">
+      <div class="draw-tools">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="color-swatch" data-color="#000000" style="background:#000"></div>
+          <div class="color-swatch" data-color="#ffffff" style="background:#fff"></div>
+          <div class="color-swatch" data-color="#ff4d6d" style="background:#ff4d6d"></div>
+          <div class="color-swatch" data-color="#6ee7b7" style="background:#6ee7b7"></div>
+          <div class="color-swatch" data-color="#7dd3fc" style="background:#7dd3fc"></div>
+          <div class="color-swatch" data-color="#ffd166" style="background:#ffd166"></div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-left:8px">
+          <label class="small">Brush</label>
+          <input id="brushSize" type="range" min="1" max="60" value="6" class="range" />
+        </div>
+
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button id="undo" class="btn secondary" title="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+          <button id="redo" class="btn secondary" title="Redo"><i class="fa-solid fa-rotate-right"></i></button>
+          <button id="eraser" class="btn secondary" title="Eraser"><i class="fa-solid fa-eraser"></i></button>
+          <button id="clearCanvas" class="btn danger" title="Clear canvas"><i class="fa-solid fa-trash"></i></button>
+          <button id="downloadImage" class="btn secondary" title="Download PNG"><i class="fa-solid fa-download"></i></button>
+        </div>
+      </div>
+
+      <canvas id="drawCanvas" width="1600" height="900" style="width:100%;height:60vh;max-height:520px;border-radius:8px"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+/* NeonNotes - Single-file rich text + drawing note app
+   Features:
+   - contenteditable rich text (toolbar using execCommand for broad support)
+   - drawing modal with touch support, undo/redo, eraser, brush color/size, insert as image
+   - notes stored in localStorage with autosave and meta (title, html)
+   - create, duplicate, rename, delete, export, import
+   - responsive & iPad friendly
+*/
+
+// Utility helpers
+const uid = () => 'n_' + Math.random().toString(36).slice(2,10);
+const now = () => new Date().toLocaleString();
+
+const NOTES_KEY = 'neonnotes_notes_v1';
+let notes = {}; // id -> {id,title,html,updated}
+let currentId = null;
+let autosaveTimer = null;
+
+// Elements
+const notesList = document.getElementById('notesList');
+const newNoteBtn = document.getElementById('newNote');
+const duplicateNoteBtn = document.getElementById('duplicateNote');
+const deleteNoteBtn = document.getElementById('deleteNote');
+const noteTitle = document.getElementById('noteTitle');
+const content = document.getElementById('content');
+const autosaveStatus = document.getElementById('autosaveStatus');
+const lastSaved = document.getElementById('lastSaved');
+const search = document.getElementById('search');
+const exportNoteBtn = document.getElementById('exportNote');
+const importNoteBtn = document.getElementById('importNoteBtn');
+const importNoteInput = document.getElementById('importNote');
+const downloadAll = document.getElementById('downloadAll');
+const clearAllBtn = document.getElementById('clearAll');
+
+// Toolbar actions
+document.querySelectorAll('.tool[data-cmd]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const cmd = btn.dataset.cmd;
+    document.execCommand(cmd, false, null);
+    content.focus();
+    scheduleSave(400);
+  });
+});
+document.getElementById('fontSize').addEventListener('change', (e) => {
+  document.execCommand('fontSize', false, e.target.value);
+  content.focus();
+  scheduleSave(400);
+});
+document.getElementById('textColor').addEventListener('input', e=>{
+  document.execCommand('foreColor', false, e.target.value);
+  content.focus();
+  scheduleSave(400);
+});
+document.getElementById('clearFormatting').addEventListener('click', ()=>{
+  document.execCommand('removeFormat', false, null);
+  document.execCommand('unlink', false, null);
+  scheduleSave(400);
+});
+document.getElementById('linkBtn').addEventListener('click', ()=>{
+  const url = prompt('Insert URL (https://...)');
+  if(url) document.execCommand('createLink', false, url);
+  scheduleSave(400);
+});
+document.getElementById('imageBtn').addEventListener('click', ()=>{
+  const url = prompt('Image URL (or data URL):');
+  if(url){
+    document.execCommand('insertImage', false, url);
+    scheduleSave(400);
+  }
+});
+
+// Note persistence
+function loadNotes(){
+  try {
+    const raw = localStorage.getItem(NOTES_KEY);
+    if(raw) notes = JSON.parse(raw);
+  } catch(e){ notes = {} }
+  // if no notes, create a starter note
+  if(Object.keys(notes).length === 0){
+    const id = uid();
+    notes[id] = { id, title: 'Welcome to NeonNotes', html: `<p>Hey! This is a new note. Try formatting, inserting images, or opening the drawing tool.</p>`, updated: Date.now() };
+    currentId = id;
+    saveNotesToStorage();
+  } else {
+    // pick most recent if none set
+    currentId = Object.keys(notes).sort((a,b)=>notes[b].updated - notes[a].updated)[0];
+  }
+}
+function saveNotesToStorage(){
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}
+function renderNotesList(filter=''){
+  notesList.innerHTML = '';
+  const arr = Object.values(notes).sort((a,b)=>b.updated - a.updated);
+  arr.filter(n=> (n.title + ' ' + stripHtml(n.html)).toLowerCase().includes(filter.toLowerCase()))
+     .forEach(n=>{
+      const div = document.createElement('div');
+      div.className = 'note-item' + (n.id===currentId ? ' active' : '');
+      div.dataset.id = n.id;
+      div.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent-2)">
+            ${n.title ? n.title.charAt(0).toUpperCase() : 'N'}
+          </div>
+          <div class="note-meta">
+            <div class="note-title">${escapeHtml(n.title || 'Untitled')}</div>
+            <div class="note-snippet">${escapeHtml(preview(n.html))}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button data-act="rename" class="btn secondary" title="Rename"><i class="fa-solid fa-pen"></i></button>
+          <button data-act="export" class="btn secondary" title="Export"><i class="fa-solid fa-file-arrow-down"></i></button>
+        </div>
+      `;
+      div.querySelectorAll('button').forEach(b=>{
+        b.addEventListener('click', (ev)=>{
+          ev.stopPropagation();
+          const act = b.dataset.act;
+          if(act==='rename'){
+            const newTitle = prompt('Rename note', n.title || '');
+            if(newTitle !== null){
+              n.title = newTitle;
+              n.updated = Date.now();
+              saveNotesToStorage();
+              renderNotesList(search.value);
+              if(n.id === currentId) noteTitle.value = n.title;
+            }
+          } else if(act==='export'){
+            downloadNoteAsHTML(n.id);
+          }
+        });
+      });
+      div.addEventListener('click', ()=>{
+        selectNote(n.id);
+      });
+      notesList.appendChild(div);
+  });
+}
+
+function selectNote(id){
+  if(!notes[id]) return;
+  currentId = id;
+  const n = notes[id];
+  noteTitle.value = n.title || '';
+  content.innerHTML = n.html || '';
+  renderNotesList(search.value);
+  updateStatus(`Loaded ${n.title||'Untitled'}`);
+}
+
+function createNote(){
+  const id = uid();
+  notes[id] = { id, title: 'Untitled', html: '<p></p>', updated: Date.now() };
+  currentId = id;
+  saveNotesToStorage();
+  renderNotesList(search.value);
+  selectNote(id);
+  scheduleSave(100);
+}
+
+function duplicateNote(){
+  if(!currentId) return;
+  const old = notes[currentId];
+  const id = uid();
+  notes[id] = { id, title: (old.title || 'Untitled') + ' (copy)', html: old.html, updated: Date.now() };
+  saveNotesToStorage();
+  renderNotesList(search.value);
+  selectNote(id);
+  updateStatus('Duplicated note');
+}
+
+function deleteNote(){
+  if(!currentId) return;
+  if(!confirm('Delete this note? This action cannot be undone.')) return;
+  delete notes[currentId];
+  saveNotesToStorage();
+  const keys = Object.keys(notes);
+  currentId = keys.length ? keys[0] : null;
+  if(currentId) selectNote(currentId);
+  else {
+    createNote();
+  }
+  renderNotesList(search.value);
+  updateStatus('Note deleted');
+}
+
+function clearAll(){
+  if(!confirm('Clear ALL notes from localStorage?')) return;
+  localStorage.removeItem(NOTES_KEY);
+  notes = {};
+  loadNotes();
+  renderNotesList();
+  selectNote(currentId);
+  updateStatus('Cleared all notes');
+}
+
+newNoteBtn.addEventListener('click', createNote);
+duplicateNoteBtn.addEventListener('click', duplicateNote);
+deleteNoteBtn.addEventListener('click', deleteNote);
+clearAllBtn.addEventListener('click', clearAll);
+
+// Autosave + schedule
+function scheduleSave(delay=600){
+  autosaveStatus.textContent = '…saving';
+  if(autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(()=> {
+    saveCurrentNote();
+  }, delay);
+}
+
+function saveCurrentNote(){
+  if(!currentId) return;
+  const n = notes[currentId] || { id: currentId };
+  n.title = noteTitle.value || 'Untitled';
+  n.html = content.innerHTML;
+  n.updated = Date.now();
+  notes[currentId] = n;
+  saveNotesToStorage();
+  renderNotesList(search.value);
+  autosaveStatus.textContent = 'saved';
+  lastSaved.textContent = 'Saved: ' + now();
+  setTimeout(()=> { autosaveStatus.textContent = '—'; }, 1500);
+}
+
+// Hook inputs
+noteTitle.addEventListener('input', ()=> scheduleSave(600));
+content.addEventListener('input', ()=> scheduleSave(500));
+content.addEventListener('paste', (e)=>{
+  // simple paste cleanup: allow images and text; for other content, fallback to plain text
+  // keep default behavior for now
+  scheduleSave(800);
+});
+
+// Search
+search.addEventListener('input', ()=> renderNotesList(search.value));
+
+// Export/Import
+function downloadNoteAsHTML(id){
+  const n = notes[id];
+  if(!n) return;
+  const html = `<!doctype html><meta charset="utf-8"><title>${escapeHtml(n.title)}</title><style>body{font-family:Inter,system-ui,Arial;padding:20px;background:#f9fafb;color:#061226}</style><h1>${escapeHtml(n.title)}</h1>${n.html}`;
+  const blob = new Blob([html], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (n.title || 'note') + '.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+exportNoteBtn.addEventListener('click', ()=> {
+  if(!currentId) return;
+  downloadNoteAsHTML(currentId);
+});
+
+importNoteBtn.addEventListener('click', ()=> importNoteInput.click());
+importNoteInput.addEventListener('change', async (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const text = await f.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'text/html');
+  const title = (doc.querySelector('title') && doc.querySelector('title').textContent) || (doc.querySelector('h1')&&doc.querySelector('h1').textContent) || f.name.replace(/\.html?$/i,'');
+  const bodyHtml = doc.body.innerHTML;
+  const id = uid();
+  notes[id] = { id, title, html: bodyHtml, updated: Date.now() };
+  saveNotesToStorage();
+  renderNotesList();
+  selectNote(id);
+  updateStatus('Imported note');
+  e.target.value = '';
+});
+
+// Export All (zip-like via JSON)
+downloadAll.addEventListener('click', ()=>{
+  const data = { exportedAt: Date.now(), notes };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `neonnotes_export_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+// Utilities
+function stripHtml(html){ return html.replace(/<[^>]*>?/gm, '') }
+function preview(html, n=120){
+  const s = stripHtml(html).trim().replace(/\s+/g,' ');
+  return s.length > n ? s.slice(0,n) + '…' : s;
+}
+function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g, (c)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+
+// Status UI
+function updateStatus(msg){
+  lastSaved.textContent = msg + ' • ' + now();
+  setTimeout(()=> lastSaved.textContent = 'Saved: ' + now(), 1800);
+}
+
+// Initialize
+loadNotes();
+renderNotesList();
+if(currentId) selectNote(currentId);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase() === 's'){
+    e.preventDefault();
+    saveCurrentNote();
+  }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase() === 'b'){
+    e.preventDefault();
+    document.execCommand('bold'); scheduleSave(400);
+  }
+});
+
+// --- Drawing tool ---
+const drawModal = document.getElementById('drawModal');
+const drawBtn = document.getElementById('drawBtn');
+const drawClose = document.getElementById('drawClose');
+const drawInsert = document.getElementById('drawInsert');
+const drawCanvas = document.getElementById('drawCanvas');
+const ctx = drawCanvas.getContext('2d', { alpha: true });
+const brushSizeEl = document.getElementById('brushSize');
+const undoBtn = document.getElementById('undo');
+const redoBtn = document.getElementById('redo');
+const eraserBtn = document.getElementById('eraser');
+const clearCanvasBtn = document.getElementById('clearCanvas');
+const downloadImageBtn = document.getElementById('downloadImage');
+const colorSwatches = document.querySelectorAll('.color-swatch');
+
+let drawing = false;
+let isEraser = false;
+let brushColor = '#000000';
+let brushSize = parseInt(brushSizeEl.value,10);
+
+let undoStack = [];
+let redoStack = [];
+const MAX_STACK = 30;
+
+function pushUndo(){
+  if(undoStack.length >= MAX_STACK) undoStack.shift();
+  undoStack.push(drawCanvas.toDataURL());
+  // clear redo on new operation
+  redoStack = [];
+}
+function undo(){
+  if(!undoStack.length) return;
+  redoStack.push(drawCanvas.toDataURL());
+  const url = undoStack.pop();
+  loadImageToCanvas(url);
+}
+function redo(){
+  if(!redoStack.length) return;
+  undoStack.push(drawCanvas.toDataURL());
+  const url = redoStack.pop();
+  loadImageToCanvas(url);
+}
+function loadImageToCanvas(url){
+  const img = new Image();
+  img.onload = ()=>{
+    ctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+    ctx.drawImage(img,0,0,drawCanvas.width,drawCanvas.height);
+  };
+  img.src = url;
+}
+
+function resizeCanvasToDisplaySize(){
+  // keep high-res backing store while fitting element size
+  const rect = drawCanvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  const w = Math.max(800, Math.floor(rect.width * ratio));
+  const h = Math.max(450, Math.floor(rect.height * ratio));
+  if(drawCanvas.width !== w || drawCanvas.height !== h){
+    // save current
+    const snapshot = drawCanvas.toDataURL();
+    drawCanvas.width = w; drawCanvas.height = h;
+    // redraw snapshot
+    const img = new Image();
+    img.onload = ()=> ctx.drawImage(img,0,0,drawCanvas.width,drawCanvas.height);
+    img.src = snapshot;
+  }
+}
+
+function startDraw(x,y){
+  drawing = true;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = brushSize;
+  ctx.strokeStyle = isEraser ? '#000000' : brushColor;
+  if(isEraser) ctx.globalCompositeOperation = 'destination-out';
+  else ctx.globalCompositeOperation = 'source-over';
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+}
+
+function drawMove(x,y){
+  if(!drawing) return;
+  ctx.lineTo(x,y);
+  ctx.stroke();
+}
+
+function stopDraw(){
+  if(!drawing) return;
+  drawing = false;
+  ctx.closePath();
+  pushUndo();
+}
+
+function getPointerPos(evt){
+  const rect = drawCanvas.getBoundingClientRect();
+  const ratio = drawCanvas.width / rect.width;
+  const p = evt.touches ? evt.touches[0] : evt;
+  return [(p.clientX - rect.left) * ratio, (p.clientY - rect.top) * ratio];
+}
+
+// Events
+drawBtn.addEventListener('click', openDrawModal);
+drawClose.addEventListener('click', ()=> closeDrawModal(false));
+drawInsert.addEventListener('click', ()=> closeDrawModal(true));
+brushSizeEl.addEventListener('input', e=> { brushSize = parseInt(e.target.value,10); });
+undoBtn.addEventListener('click', undo);
+redoBtn.addEventListener('click', redo);
+eraserBtn.addEventListener('click', ()=> { isEraser = !isEraser; eraserBtn.classList.toggle('active'); });
+clearCanvasBtn.addEventListener('click', ()=> {
+  if(confirm('Clear canvas?')) {
+    pushUndo();
+    ctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+  }
+});
+downloadImageBtn.addEventListener('click', ()=>{
+  const a = document.createElement('a');
+  a.href = drawCanvas.toDataURL('image/png');
+  a.download = 'sketch.png';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+colorSwatches.forEach(s=>{
+  s.addEventListener('click', ()=>{
+    brushColor = s.dataset.color || '#000';
+    isEraser = false;
+    eraserBtn.classList.remove('active');
+  });
+});
+
+// pointer events (mouse + touch)
+drawCanvas.addEventListener('mousedown', (e)=> { const [x,y] = getPointerPos(e); startDraw(x,y); e.preventDefault(); });
+drawCanvas.addEventListener('mousemove', (e)=> { const [x,y] = getPointerPos(e); drawMove(x,y); });
+drawCanvas.addEventListener('mouseup', stopDraw);
+drawCanvas.addEventListener('mouseleave', stopDraw);
+
+drawCanvas.addEventListener('touchstart', (e)=> { const [x,y] = getPointerPos(e); startDraw(x,y); e.preventDefault(); });
+drawCanvas.addEventListener('touchmove', (e)=> { const [x,y] = getPointerPos(e); drawMove(x,y); e.preventDefault(); });
+drawCanvas.addEventListener('touchend', (e)=> { stopDraw(); e.preventDefault(); });
+
+// Modal behaviors
+function openDrawModal(){
+  drawModal.classList.add('show');
+  // make canvas size correct
+  setTimeout(()=> {
+    resizeCanvasToDisplaySize();
+    // if blank, create white background for visibility when saved to PNG
+    if(!undoStack.length && ctx.getImageData(0,0,1,1).data.every(v=>v===0)){
+      ctx.fillStyle = '#ffffff00'; // transparent by default
+      ctx.fillRect(0,0,drawCanvas.width,drawCanvas.height);
+    }
+    pushUndo(); // initial state
+  },80);
+}
+
+function closeDrawModal(insert=false){
+  drawModal.classList.remove('show');
+  if(insert){
+    // convert canvas to image and insert into content at caret
+    const dataUrl = drawCanvas.toDataURL('image/png');
+    insertImageAtCursor(dataUrl);
+    scheduleSave(300);
+  }
+}
+
+// Insert image at caret / selection
+function insertImageAtCursor(dataUrl){
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.style.maxWidth = '100%';
+  img.style.borderRadius = '8px';
+  // insert using execCommand for compatibility
+  // create a temporary selection
+  const sel = window.getSelection();
+  if(!sel || !sel.rangeCount){ content.appendChild(img); return; }
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  range.insertNode(img);
+  // move caret after image
+  range.setStartAfter(img);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+// Initialize drawing canvas clear
+(function initCanvas(){
+  // high-resolution default
+  drawCanvas.width = 1600;
+  drawCanvas.height = 900;
+  ctx.fillStyle = 'transparent';
+  ctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+  pushUndo();
+})();
+
+// helpers for escaping (already above) included
+// small onboarding hint
+setTimeout(()=> {
+  if(content.innerHTML.trim().length === 0 || content.innerText.trim().length === 0) {
+    content.innerHTML = `<p style="color:var(--muted)">Tip: use the toolbar or <kbd>⌘/Ctrl</kbd> + <kbd>B</kbd> for bold. Tap the pen icon to insert sketches.</p>`;
+  }
+},600);
+
+// Make notes selectable by tapping on iPad (touch)
+notesList.addEventListener('touchstart', (e)=> {
+  const el = e.target.closest('.note-item');
+  if(el) el.classList.add('touching');
+});
+notesList.addEventListener('touchend', (e)=> {
+  const el = e.target.closest('.note-item');
+  if(el) el.classList.remove('touching');
+});
+
+// On before unload, ensure save
+window.addEventListener('beforeunload', saveCurrentNote);
+
+// small accessibility: focus content when tapping title
+noteTitle.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); content.focus(); }
+});
+
+// Initial autosave ping
+setInterval(()=> {
+  // periodical save to ensure no data loss
+  saveCurrentNote();
+}, 30_000);
+
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Service Worker registered', reg))
+      .catch(err => console.log('SW registration failed', err));
+  });
+}
+</script>
+</body>
+</html>
